@@ -1,6 +1,12 @@
+// v1.0.0 を有効にします(v0からの移行期間の特別措置です。これを書かない場合は旧v0系で動作します。)
+#define LGFX_USE_V1
+
 #include <LovyanGFX.hpp>
 
-class Lgfx_Monitor : public lgfx::LGFX_Device
+// ESP32でLovyanGFXを独自設定で利用する場合の設定例
+
+/// 独自の設定を行うクラスを、LGFX_Deviceから派生して作成します。
+class LGFX_Monitor : public lgfx::LGFX_Device
 {
 /*
  クラス名は"LGFX"から別の名前に変更しても構いません。
@@ -39,6 +45,7 @@ lgfx::Panel_ILI9341     _panel_instance;
 //lgfx::Panel_ST7789      _panel_instance;
 //lgfx::Panel_ST7796      _panel_instance;
 
+
 // パネルを接続するバスの種類にあったインスタンスを用意します。
   lgfx::Bus_SPI       _bus_instance;   // SPIバスのインスタンス
 //lgfx::Bus_I2C       _bus_instance;   // I2Cバスのインスタンス (ESP32のみ)
@@ -46,34 +53,40 @@ lgfx::Panel_ILI9341     _panel_instance;
 
 // バックライト制御が可能な場合はインスタンスを用意します。(必要なければ削除)
   lgfx::Light_PWM     _light_instance;
+
 public:
-  Lgfx_Monitor(void)
+
+  // コンストラクタを作成し、ここで各種設定を行います。
+  // クラス名を変更した場合はコンストラクタも同じ名前を指定してください。
+  LGFX_Monitor(void)
   {
-    {
-      auto cfg = _bus_instance.config();
-      // バス制御の設定を行います。
+    { // バス制御の設定を行います。
+      auto cfg = _bus_instance.config();    // バス設定用の構造体を取得します。
+
+// SPIバスの設定
       cfg.spi_host = SPI3_HOST;     // 使用するSPIを選択  ESP32-S2,C3 : SPI2_HOST or SPI3_HOST / ESP32 : VSPI_HOST or HSPI_HOST
       // ※ ESP-IDFバージョンアップに伴い、VSPI_HOST , HSPI_HOSTの記述は非推奨になるため、エラーが出る場合は代わりにSPI2_HOST , SPI3_HOSTを使用してください。
-      cfg.spi_mode = 2;             // SPI通信モードを設定 (0 ~ 3)
+      cfg.spi_mode = 3;             // SPI通信モードを設定 (0 ~ 3)
       cfg.freq_write = 40000000;    // 送信時のSPIクロック (最大80MHz, 80MHzを整数で割った値に丸められます)
       cfg.freq_read  = 16000000;    // 受信時のSPIクロック
-      cfg.spi_3wire  =  true;        // 受信をMOSIピンで行う場合はtrueを設定
+      cfg.spi_3wire  = true;        // 受信をMOSIピンで行う場合はtrueを設定
       cfg.use_lock   = true;        // トランザクションロックを使用する場合はtrueを設定
-      cfg.dma_channel = SPI_DMA_DISABLED; // 使用するDMAチャンネルを設定 (0=DMA不使用 / 1=1ch / 2=ch / SPI_DMA_CH_AUTO=自動設定)
+      cfg.dma_channel = SPI_DMA_CH_AUTO; // 使用するDMAチャンネルを設定 (0=DMA不使用 / 1=1ch / 2=ch / SPI_DMA_CH_AUTO=自動設定)
       // ※ ESP-IDFバージョンアップに伴い、DMAチャンネルはSPI_DMA_CH_AUTO(自動設定)が推奨になりました。1ch,2chの指定は非推奨になります。
-      cfg.pin_sclk = 18;            // SPIのSCLKピン番号を設定
-      cfg.pin_mosi = 17;            // SPIのMOSIピン番号を設定
+      cfg.pin_sclk = 14;            // SPIのSCLKピン番号を設定
+      cfg.pin_mosi = 13;            // SPIのMOSIピン番号を設定
       cfg.pin_miso = -1;            // SPIのMISOピン番号を設定 (-1 = disable)
-      cfg.pin_dc   = 8;            // SPIのD/Cピン番号を設定  (-1 = disable)
-
+      cfg.pin_dc   = 21;            // SPIのD/Cピン番号を設定  (-1 = disable)
+     // SDカードと共通のSPIバスを使う場合、MISOは省略せず必ず設定してください。
+//*/
       _bus_instance.config(cfg);    // 設定値をバスに反映します。
       _panel_instance.setBus(&_bus_instance);      // バスをパネルにセットします。
     }
-    // 表示パネル制御の設定を行います。
-    {
+
+    { // 表示パネル制御の設定を行います。
       auto cfg = _panel_instance.config();    // 表示パネル設定用の構造体を取得します。
 
-      cfg.pin_cs           =    -1;  // CSが接続されているピン番号   (-1 = disable)
+      cfg.pin_cs           =    7;  // CSが接続されているピン番号   (-1 = disable)
       cfg.pin_rst          =    15;  // RSTが接続されているピン番号  (-1 = disable)
       cfg.pin_busy         =    -1;  // BUSYが接続されているピン番号 (-1 = disable)
 
@@ -90,25 +103,29 @@ public:
       cfg.invert           = false;  // パネルの明暗が反転してしまう場合 trueに設定
       cfg.rgb_order        = false;  // パネルの赤と青が入れ替わってしまう場合 trueに設定
       cfg.dlen_16bit       = false;  // 16bitパラレルやSPIでデータ長を16bit単位で送信するパネルの場合 trueに設定
-      cfg.bus_shared       =  false;  // SDカードとバスを共有している場合 trueに設定(drawJpgFile等でバス制御を行います)
+      cfg.bus_shared       =  true;  // SDカードとバスを共有している場合 trueに設定(drawJpgFile等でバス制御を行います)
+
+// 以下はST7735やILI9163のようにピクセル数が可変のドライバで表示がずれる場合にのみ設定してください。
+  //  cfg.memory_width     =   240;  // ドライバICがサポートしている最大の幅
+  //  cfg.memory_height    =   320;  // ドライバICがサポートしている最大の高さ
 
       _panel_instance.config(cfg);
     }
 
-    // バックライト制御の設定を行います。（必要なければ削除）
-    {
+//*
+    { // バックライト制御の設定を行います。（必要なければ削除）
       auto cfg = _light_instance.config();    // バックライト設定用の構造体を取得します。
 
-      cfg.pin_bl = 7;              // バックライトが接続されているピン番号
+      cfg.pin_bl = 48;              // バックライトが接続されているピン番号
       cfg.invert = false;           // バックライトの輝度を反転させる場合 true
       cfg.freq   = 44100;           // バックライトのPWM周波数
       cfg.pwm_channel = 7;          // 使用するPWMのチャンネル番号
 
       _light_instance.config(cfg);
-      _panel_instance.setLight(&_light_instance);  // バックライトをパネルにセットします。     
+      _panel_instance.setLight(&_light_instance);  // バックライトをパネルにセットします。
     }
+//*/
 
     setPanel(&_panel_instance); // 使用するパネルをセットします。
   }
-
 };

@@ -1,0 +1,11 @@
+{
+  "files.associations": {
+    "lv_port_disp.h": "c",
+    "stdbool.h": "c",
+    "array": "cpp",
+    "string": "cpp",
+    "string_view": "cpp",
+    "*.tcc": "cpp"
+  },
+  "commentTranslate.source": "Google"
+}
